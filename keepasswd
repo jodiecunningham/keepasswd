@@ -78,9 +78,6 @@ $config = Config::Tiny->read($configfile);
 my %kpwdconfig = %{ merge( \%kpwdconfig_cli, $config->{_})};
 %kpwdconfig = %{ merge( \%kpwdconfig, \%kpwdbconfig_defaults)};
 
-warn Dumper (%kpwdconfig);
-
-
 if(!defined $kpwdconfig{'password'}){
 	die "password= not in config file\n";
 }
@@ -111,7 +108,7 @@ if (defined $kpwdconfig{'dbkey'} and length $kpwdconfig{'dbkey'}){
 }
 
 my $server = $kp_db->find_entry({
-	title => $kpwdconfig{'account'}, group_title => $kpwdconfig{'dbgroup'}
+	title => $kpwdconfig{'account'}, group_title => $kpwdconfig{'group'}
 	});
 $kp_db->unlock;
 
@@ -123,7 +120,7 @@ $ENV{NEW_PASSWORD}=$newpass;
 
 my ($kphostname) = $server->{'url'} =~ m#ssh://(.*)#;
 
-system("./sshchpasswd.exp $kphostname 1>/dev/null 2>&1");
+system("$kpwdconfig{'sshchpasswd'} $kphostname 1>/dev/null 2>&1");
 if ( $? == -1 )
 {
 	print "chpasswd failed: $!\n";
