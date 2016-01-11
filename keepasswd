@@ -1,0 +1,173 @@
+#!/usr/bin/perl
+#
+# The MIT License (MIT)
+#
+# Copyright (C) 2016 Jodie Cunningham
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+use strict;
+use warnings;
+
+use File::KeePass;
+use Getopt::Long;
+use Pod::Usage;
+use Config::Tiny;
+use Data::Dumper::Simple;
+use Hash::Merge qw( merge );
+
+ my %kpwdbconfig_defaults = (
+	"dbfile"	=>	undef,
+	"dbkey"	=>	undef,
+	"account"	=>	undef,
+	"group"	=>	undef,
+	"rotateexpired"	=>	undef,
+	"openssl"		=>	undef,
+	"password"		=>	undef,
+	"sshchpasswd"	=>	undef
+	);
+
+
+pod2usage("$0: no arguments given.") if (@ARGV == 0);
+
+my(%kpwdconfig_cli,%otherconfig_cli);
+my $configfile = '';
+
+GetOptions ( 'dbfile:s' => \&optHandler,
+			 'dbkey:s' => \&optHandler,
+			 'account:s' => \&optHandler,
+			 'group:s' => \&optHandler,
+			 'sshchpasswd:s' => \&optHandler,
+			 'help|h|?' => \$otherconfig_cli{'help'},
+			 'rotate-expired' => \&optHandler,
+			 'config=s' => \$configfile
+) or pod2usage(2);
+
+sub optHandler {
+	my ($opt_name, $opt_value) = @_;
+	if (defined $opt_value) {
+		$kpwdconfig_cli{$opt_name}=$opt_value;
+	}
+};
+
+pod2usage(1) if $otherconfig_cli{'help'};
+
+my $config = Config::Tiny->new;
+if (-f $configfile){
+$config = Config::Tiny->read($configfile);
+} else { 
+	die "Config file doesn't exist.\n";
+}
+
+my %kpwdconfig = %{ merge( \%kpwdconfig_cli, $config->{_})};
+%kpwdconfig = %{ merge( \%kpwdconfig, \%kpwdbconfig_defaults)};
+
+warn Dumper (%kpwdconfig);
+
+
+if(!defined $kpwdconfig{'password'}){
+	die "password= not in config file\n";
+}
+
+if(!defined $kpwdconfig{'sshchpasswd'}){
+	die "sshchpasswd= not in config file\n";
+}
+
+if(!defined $kpwdconfig{'dbfile'}){
+	die "No dbfile command line argument or config file parameter specified. Please specify a dbfile and try again.\n";
+}
+
+if(!defined $kpwdconfig{'group'}){
+	die "No group command line argument or config file parameter specified. Please specify a group and try again.\n";
+}
+
+if(!defined $kpwdconfig{'account'} && !defined $kpwdconfig{'rotateexpired'}){
+	die "No account or rotate-expired specified.\n";
+}
+
+my $kp_db = File::KeePass->new;
+if (defined $kpwdconfig{'dbkey'} and length $kpwdconfig{'dbkey'}){
+	print "Loading with key\n";
+	$kp_db->load_db($kpwdconfig{'dbfile'}, [$kpwdconfig{'password'},$kpwdconfig{'dbkey'}]);
+} else{
+	print "Loading without key\n";
+	$kp_db->load_db($kpwdconfig{'dbfile'}, $kpwdconfig{'password'});
+}
+
+my $server = $kp_db->find_entry({
+	title => $kpwdconfig{'account'}, group_title => $kpwdconfig{'dbgroup'}
+	});
+$kp_db->unlock;
+
+my $newpass = `openssl rand -base64 12`;
+chomp($newpass);
+
+$ENV{OLD_PASSWORD}=$server->{'password'};
+$ENV{NEW_PASSWORD}=$newpass;
+
+my ($kphostname) = $server->{'url'} =~ m#ssh://(.*)#;
+
+system("./sshchpasswd.exp $kphostname 1>/dev/null 2>&1");
+if ( $? == -1 )
+{
+	print "chpasswd failed: $!\n";
+}
+else
+{
+	$server->{'password'}=$newpass;
+	print "Seemed to have succeeded.\n";
+}
+
+if (defined $kpwdconfig{'dbkey'} and length $kpwdconfig{'dbkey'}){
+	print "Saving with key\n";
+	$kp_db->save_db($kpwdconfig{'dbfile'}, [$kpwdconfig{'password'},$kpwdconfig{'dbkey'}]);
+} else{
+	print "Saving without key\n";
+	$kp_db->save_db($kpwdconfig{'dbfile'}, $kpwdconfig{'password'});
+}
+
+__END__
+
+=head1 NAME
+
+keepasswd - Change passwords that are stored in KeePass databases
+
+=head1 SYNOPSIS
+
+keepasswd <--account=|--rotate-expired> [--dbfile /path/file.kdb] [--dbkeyfile /path/key.keyfile] [--group groupname] [--help]
+
+ Arguments (one of the following):
+   --rotate-expired 		Rotate all expired passwords
+   --account 				Entry title in KeePassDB
+ Arguments (required)
+   --config 			Location of config file
+ Arguments to specify in config or command line
+   --dbkeyfile			Location of database key file
+   --dbfile 			Location of KeePass database file
+   --group			Group in KeePass DB to search for account
+ Options
+   --help			Display this help documentation
+   
+
+=head1 DESCRIPTION
+
+B<keepasswd> will change a password on a service, normally ssh, by pulling
+from and updating a KeePass database.
+
+=cut
