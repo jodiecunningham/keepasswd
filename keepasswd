@@ -29,6 +29,7 @@ use File::KeePass;
 use Getopt::Long;
 use Pod::Usage;
 use Config::Tiny;
+use IPC::Run 'run';
 use Hash::Merge qw( merge );
 
  my %kpwdbconfig_defaults = (
@@ -37,7 +38,7 @@ use Hash::Merge qw( merge );
 	"account"	=>	undef,
 	"group"	=>	undef,
 	"rotateexpired"	=>	undef,
-	"openssl"		=>	undef,
+	"openssl"		=>	'/usr/bin/openssl',
 	"password"		=>	undef,
 	"sshchpasswd"	=>	undef
 	);
@@ -111,8 +112,7 @@ my $server = $kp_db->find_entry({
 	});
 $kp_db->unlock;
 
-my $newpass = `openssl rand -base64 12`;
-chomp($newpass);
+run [$kpwdconfig{'openssl'}, "rand", "-base64","12"],">", \my $newpass;
 
 $ENV{OLD_PASSWORD}=$server->{'password'};
 $ENV{NEW_PASSWORD}=$newpass;
