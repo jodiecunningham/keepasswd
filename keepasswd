@@ -120,9 +120,9 @@ $ENV{NEW_PASSWORD}=$newpass;
 my ($kphostname) = $server->{'url'} =~ m#ssh://(.*)#;
 
 system("$kpwdconfig{'sshchpasswd'} $kphostname 1>/dev/null 2>&1");
-if ( $? == -1 )
+if ( $?/256 == 1 )
 {
-	die "chpasswd failed: $!\n";
+	die "Not saving, chpasswd failed: $!\n";
 }
 else
 {
