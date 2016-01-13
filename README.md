@@ -1,11 +1,24 @@
 ## Synopsis
 
-keepasswd is designed to join together your KeePass database and password management. keepasswd has an initial goal to support changing SSH passwords, with an eventual goal of a pluggable interface to allow changing items like Windows, database or web passwords.
+`keepasswd` is designed to join together your KeePass database and password management. keepasswd has an initial goal to support changing SSH passwords, with an eventual goal of a pluggable interface to allow changing items like Windows, database or web passwords.
 
 
 ## Code Example
 
     keepasswd --account user2@localhost --config ./config
+
+## KeePass Entry Example
+
+    Title: user@www1
+    URL: ssh://user@172.30.25.9
+    User: user
+    Server: server
+    Password: userpassword
+
+`keepasswd` pulls from the URL portion of the entry to connect.  
+
+On the command line you could specify the title, `--account user@www1`, but the script would connect to user@172.30.25.9 .
+
 
 ## Motivation
 
@@ -13,7 +26,7 @@ The creation of this was motivated by the frustration of changing passwords on m
 
 ## Installation
 
-For RPM-based systems, you'll need perl,perl-File-KeePass,perl-Config-Tiny, as well as the sshchpasswd.exp available at:
+For RPM-based systems, you'll need perl,perl-File-KeePass,perl-Config-Tiny, IPC::Run as well as the sshchpasswd.exp available at:
 https://github.com/jsmoriss/sshchpwd
 
 Then git clone the project and set up a configure file for the KeePass database you want to use.
