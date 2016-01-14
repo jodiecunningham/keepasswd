@@ -7,7 +7,7 @@
 
     keepasswd --account user2@localhost --config ./config
 
-`keepass` will attempt to connect to localhost as user2 using the password in the KeePass database, generate a new password, change the user's password, and save it back to the KeePass database if the operation was successful.
+`keepasswd` will attempt to connect to localhost as user2 using the password in the KeePass database, generate a new password, change the user's password, and save it back to the KeePass database if the operation was successful.
 
 ## KeePass Entry Example
 
