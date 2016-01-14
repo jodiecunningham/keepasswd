@@ -33,10 +33,13 @@ https://github.com/jsmoriss/sshchpwd
 
 Then git clone the project and set up a configure file for the KeePass database you want to use.
 
-The config file supports the following settings:  
+The config file supports the following settings:
+
 The following config file setting is required:
-    password=	password to the KeePass DB [required]  
-The following config file settings must be specified either in the config file or as command line arguments:
+
+    password=	password to the KeePass DB 
+The following config file settings must be specified either in the config file or as command line arguments:  
+
     dbfile=		full path to the kdb file
     account=	entry title to search for
     group=		default group to search
@@ -44,7 +47,8 @@ The following config file settings must be specified either in the config file o
     sshchpwd=	full path to the sshchpwd script you plan to use
     sshverifypwd=	full path to the sshverifypwd script you plan to use
 
-The following config file settings are optional, but can be specified on the CLI as well:
+The following config file settings are optional, but can be specified on the CLI as well:  
+
     dbkey=		full path to the key file
 
 
