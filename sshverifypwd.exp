@@ -1,0 +1,115 @@
+#!/usr/bin/expect -f
+#
+# /usr/local/bin/sshverifypwd.exp
+#
+# Expect script to verify login passwords using SSH, with support for one-time
+# tokens (like SecurID)
+#
+# License: GPLv3
+# License URI: http://www.gnu.org/licenses/gpl.txt
+#
+# Copyright 2016 Jodie Cunningham
+# Based on expects from sshchpwd, copyright 2012-2016 Jean-Sebastien Morisset (http://surniaulula.com/)
+# sshchpwd available at https://github.com/jsmoriss/sshchpwd
+#
+# Example:
+#
+#	$ export SERVER_PASSWORD="password"
+#	$ ./sshverifypwd {server} {port} {token}
+#
+# The {port} and {token} command-line parameters are optional. If the server
+# uses SecurID (or another one-time password), enter it on the command-line as
+# the third parameter.
+
+set timeout 15
+set server [lindex $argv 0]
+set port [lindex $argv 1]
+set tokpwd [lindex $argv 2]
+set serverpwd $env(SERVER_PASSWORD)
+set prompt "\[>%\\$#\] "
+
+if { $port == "" }  { set port "22" }
+if { $tokpwd == "" }  { set tokpwd $serverpwd }
+
+send_user "connecting to $server on port $port\n"
+spawn ssh -p $port $server
+
+# Mission of this first expect - get to the shell command prompt. If the
+# password is expired and we have to change it before getting to the prompt,
+# then exit 0 (success).  
+
+expect {
+	"(yes/no)? " { 
+		send_user " (detected unknown host key - accepting)\n"
+		send "yes\n"
+		send_user " (continuing expect loop)\n"
+		exp_continue
+	}
+	"assword:" { 
+		send_user " (detected password login prompt - possibly token)\n"
+		send "$tokpwd\n" 
+		expect {
+			" UNIX password:" {
+				send_user " (detected additional password prompt - account password)\n"
+				send "$serverpwd\n" 
+				send_user " (continuing expect loop)\n"
+				exp_continue
+			}
+			-nocase "old password:" {
+				send_user " (detected password expired prompt)\n"
+				exit 1
+			}
+			"assword:" {
+					send_user "\nAutomated login failed.\n"
+					exit 1
+					
+				}
+			-re "$prompt" { send_user " (detected shell command prompt)\n" }
+		}
+	}
+	-re "$prompt" { send_user " (detected shell command prompt)\n" }
+}
+
+send "\n"
+
+send "su - \$USER\n"
+sleep .2
+
+expect {
+	"assword:" { 
+		send_user " (detected password login prompt - possibly token)\n"
+		send "$tokpwd\n" 
+		sleep 3
+		expect {
+			" UNIX password:" {
+				send_user " (detected additional password prompt - account password)\n"
+				send "$serverpwd\n" 
+				send_user " (continuing expect loop)\n"
+				exp_continue
+			}
+			-nocase "old password:" {
+				send_user " (detected password expired prompt)\n"
+				exit 1
+			}
+			"assword:" {
+					send_user "\nAutomated login failed.\n"
+					exit 1
+					
+				}
+			"ailure" {
+					send_user " Verification failed.\n"
+					exit 1
+			}
+			-re "$prompt" { send_user " (detected shell command prompt -- password seems to be valid)\n" }
+		}
+	}
+	-re "$prompt" { 
+					send_user " (detected shell command prompt -- can't verify this way)\n"
+					exit 1
+	 }
+	 default {
+	 	send_user " (verification failed) \n"
+	 	exit 1
+	 }
+}
+

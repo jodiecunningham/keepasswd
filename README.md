@@ -28,7 +28,7 @@ The creation of this was motivated by the frustration of changing passwords on m
 
 ## Installation
 
-For RPM-based systems, you'll need perl,perl-File-KeePass,perl-Config-Tiny, IPC::Run as well as the sshchpasswd.exp available at:
+For RPM-based systems, you'll need perl,perl-File-KeePass,perl-Config-Tiny, IPC::Run as well as the sshchpwd.exp available at:
 https://github.com/jsmoriss/sshchpwd
 
 Then git clone the project and set up a configure file for the KeePass database you want to use.
@@ -37,7 +37,7 @@ The config file supports the following options:
 	password=	password to the KeePass DB [required]  
 	dbfile=		full path to the kdb file [optional]  
 	dbkey=		full path to the key file for the kdb [optional]  
-	sshchpasswd=	full path to the sshchpasswd script you plan to use [required for ssh]  
+	sshchpwd=	full path to the sshchpwd script you plan to use [required for ssh]  
 	group=		default group to search [optional]  
 
 ## Contributors

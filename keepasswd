@@ -37,10 +37,12 @@ use Hash::Merge qw( merge );
 	"dbkey"	=>	undef,
 	"account"	=>	undef,
 	"group"	=>	undef,
+	"verifyonly" => undef,
 	"rotateexpired"	=>	undef,
 	"openssl"		=>	'/usr/bin/openssl',
 	"password"		=>	undef,
-	"sshchpasswd"	=>	undef
+	"sshchpwd"	=>	undef,
+	"sshverifypwd"	=> 	undef
 	);
 
 
@@ -53,9 +55,11 @@ GetOptions ( 'dbfile:s' => \&optHandler,
 			 'dbkey:s' => \&optHandler,
 			 'account:s' => \&optHandler,
 			 'group:s' => \&optHandler,
-			 'sshchpasswd:s' => \&optHandler,
+			 'sshchpwd:s' => \&optHandler,
+			 'sshverifypwd:s' => \&optHandler,
 			 'help|h|?' => \$otherconfig_cli{'help'},
-			 'rotate-expired' => \&optHandler,
+			 'rotateexpired' => \&optHandler,
+			 'verifyonly' => \&optHandler,
 			 'config=s' => \$configfile
 ) or pod2usage(2);
 
@@ -82,8 +86,8 @@ if(!defined $kpwdconfig{'password'}){
 	die "password= not in config file\n";
 }
 
-if(!defined $kpwdconfig{'sshchpasswd'}){
-	die "sshchpasswd= not in config file\n";
+if(!defined $kpwdconfig{'sshchpwd'}){
+	die "sshchpwd= not in config file\n";
 }
 
 if(!defined $kpwdconfig{'dbfile'}){
@@ -112,30 +116,51 @@ my $server = $kp_db->find_entry({
 	});
 $kp_db->unlock;
 
-run [$kpwdconfig{'openssl'}, "rand", "-base64","12"],">", \my $newpass;
 
-$ENV{OLD_PASSWORD}=$server->{'password'};
-$ENV{NEW_PASSWORD}=$newpass;
-
-my ($kphostname) = $server->{'url'} =~ m#ssh://(.*)#;
-
-system("$kpwdconfig{'sshchpasswd'} $kphostname 1>/dev/null 2>&1");
-if ( $?/256 == 1 )
-{
-	die "Not saving, chpasswd failed: $!\n";
-}
-else
-{
-	$server->{'password'}=$newpass;
-	print "Seemed to have succeeded.\n";
-}
-
-if (defined $kpwdconfig{'dbkey'} and length $kpwdconfig{'dbkey'}){
-	print "Saving with key\n";
-	$kp_db->save_db($kpwdconfig{'dbfile'}, [$kpwdconfig{'password'},$kpwdconfig{'dbkey'}]);
+if (defined $kpwdconfig{'verifyonly'}){
+	if (!defined $kpwdconfig{'sshverifypwd'}) {
+		die "The location of sshverifypwd is not defined.\n";
+	} else {
+		$ENV{SERVER_PASSWORD}=$server->{'password'};
+		my ($kphostname) = $server->{'url'} =~ m#ssh://(.*)#;
+		run [$kpwdconfig{'sshverifypwd'}, $kphostname],">", \my $verifyout;
+		if ( $?/256 == 1) {
+			print "Verification appears to have failed.\n";
+			exit 1;
+		} else {
+			print "Verification appears to have succeeded.\n";
+			exit 0;
+		}
+	}
 } else{
-	print "Saving without key\n";
-	$kp_db->save_db($kpwdconfig{'dbfile'}, $kpwdconfig{'password'});
+
+	run [$kpwdconfig{'openssl'}, "rand", "-base64","12"],">", \my $newpass;
+
+	$ENV{OLD_PASSWORD}=$server->{'password'};
+	$ENV{NEW_PASSWORD}=$newpass;
+
+	my ($kphostname) = $server->{'url'} =~ m#ssh://(.*)#;
+
+	system("$kpwdconfig{'sshchpwd'} $kphostname 1>/dev/null 2>&1");
+	if ( $?/256 == 1 )
+	{
+		print "Not saving, sshchpasswd failed: $!\n";
+		exit 1;
+	}
+	else
+	{
+		$server->{'password'}=$newpass;
+		print "Seemed to have succeeded.\n";
+	}
+
+	if (defined $kpwdconfig{'dbkey'} and length $kpwdconfig{'dbkey'}){
+		print "Saving with key\n";
+		$kp_db->save_db($kpwdconfig{'dbfile'}, [$kpwdconfig{'password'},$kpwdconfig{'dbkey'}]);
+	} else{
+		print "Saving without key\n";
+		$kp_db->save_db($kpwdconfig{'dbfile'}, $kpwdconfig{'password'});
+	}
+
 }
 
 __END__
