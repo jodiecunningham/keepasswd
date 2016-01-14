@@ -34,37 +34,37 @@ https://github.com/jsmoriss/sshchpwd
 Then git clone the project and set up a configure file for the KeePass database you want to use.
 
 The config file supports the following settings:  
-	The following config file setting is required:
-	password=	password to the KeePass DB [required]  
-	The following config file settings must be specified either in the config file or as command line arguments:
-	dbfile=		full path to the kdb file
-	account=	entry title to search for
-	group=		default group to search
-	openssl=	full path to openssl executable
-	sshchpwd=	full path to the sshchpwd script you plan to use
-	sshverifypwd=	full path to the sshverifypwd script you plan to use
+The following config file setting is required:
+    password=	password to the KeePass DB [required]  
+The following config file settings must be specified either in the config file or as command line arguments:
+    dbfile=		full path to the kdb file
+    account=	entry title to search for
+    group=		default group to search
+    openssl=	full path to openssl executable
+    sshchpwd=	full path to the sshchpwd script you plan to use
+    sshverifypwd=	full path to the sshverifypwd script you plan to use
 
-	The following config file settings are optional, but can be specified on the CLI as well:
-	dbkey=		full path to the key file
+The following config file settings are optional, but can be specified on the CLI as well:
+    dbkey=		full path to the key file
 
 
 ## Usage
 
 The three main actions are to change (default), verifyonly (via the --verifyonly flag), and rotate-expired (not yet implemented)
 
-	An example to rotate a password, with the settings for password, dbfile, group, openssl, sshchpwd, sshverifypwd in the config file:
+An example to rotate a password, with the settings for password, dbfile, group, openssl, sshchpwd, sshverifypwd in the config file:
 
     keepasswd --account user2@localhost --config ./config
 
-	An example that's mostly CLI based, with only the password in the dbfile:
+An example that's mostly CLI based, with only the password in the dbfile:
 
     keepasswd --verifyonly --account user2@localhost --dbfile ./db.kdb --dbkey ./db.key --group cust1 --openssl `which openssl` --sshchpwd ./sshchpasswd.exp --sshverifypwd ./sshverifypwd.exp --config ./keepasswd.config
 
-	An example that only verifies:
+An example that only verifies:
 
     keepasswd --verifyonly --account someuser@remote --config ~/keepasswd.config
 
-	CLI options will take precedence over the config file options.
+CLI options will take precedence over the config file options.
 
 ## Contributors
 
