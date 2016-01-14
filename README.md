@@ -56,15 +56,15 @@ The three main actions are to change (default), verifyonly (via the --verifyonly
 
     keepasswd --account user2@localhost --config ./config
 
-    An example that's mostly CLI based, with only the password in the dbfile:
+	An example that's mostly CLI based, with only the password in the dbfile:
 
     keepasswd --verifyonly --account user2@localhost --dbfile ./db.kdb --dbkey ./db.key --group cust1 --openssl `which openssl` --sshchpwd ./sshchpasswd.exp --sshverifypwd ./sshverifypwd.exp --config ./keepasswd.config
 
-    An example that only verifies:
+	An example that only verifies:
 
     keepasswd --verifyonly --account someuser@remote --config ~/keepasswd.config
 
-    CLI options will take precedence over the config file options.
+	CLI options will take precedence over the config file options.
 
 ## Contributors
 
