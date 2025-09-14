@@ -8,7 +8,7 @@
 # License: GPLv3
 # License URI: http://www.gnu.org/licenses/gpl.txt
 #
-# Copyright 2016 Jodie Cunningham
+# Copyright 2025 Jodie Cunningham
 # Based on expects from sshchpwd, copyright 2012-2016 Jean-Sebastien Morisset (http://surniaulula.com/)
 # sshchpwd available at https://github.com/jsmoriss/sshchpwd
 #
@@ -27,6 +27,14 @@ set port [lindex $argv 1]
 set tokpwd [lindex $argv 2]
 set serverpwd $env(SERVER_PASSWORD)
 set prompt "\[>%\\$#\] "
+
+# Support for privilege escalation after SSH login
+set sudo_as $env(SUDO_AS)
+set sudo_as_pwd $env(SUDO_AS_PASSWORD)
+set su_as $env(SU_AS)
+set su_as_pwd $env(SU_AS_PASSWORD)
+set newgrp_as $env(NEWGRP_AS)
+set newgrp_as_pwd $env(NEWGRP_AS_PASSWORD)
 
 if { $port == "" }  { set port "22" }
 if { $tokpwd == "" }  { set tokpwd $serverpwd }
@@ -70,46 +78,82 @@ expect {
 	-re "$prompt" { send_user " (detected shell command prompt)\n" }
 }
 
-send "\n"
-
 send "su - \$USER\n"
 sleep .2
 
-expect {
-	"assword:" { 
-		send_user " (detected password login prompt - possibly token)\n"
-		send "$tokpwd\n" 
-		sleep 3
-		expect {
-			" UNIX password:" {
-				send_user " (detected additional password prompt - account password)\n"
-				send "$serverpwd\n" 
-				send_user " (continuing expect loop)\n"
-				exp_continue
-			}
-			-nocase "old password:" {
-				send_user " (detected password expired prompt)\n"
-				exit 1
-			}
-			"assword:" {
+# Privilege escalation logic
+if { $sudo_as != "" } {
+	send "sudo -u $sudo_as -i\n"
+	expect {
+		"assword:" {
+			send_user " (sudo: detected password prompt)\n"
+			send "$sudo_as_pwd\n"
+			exp_continue
+		}
+		-re "$prompt" { send_user " (sudo: shell prompt detected)\n" }
+		default { send_user " (sudo: failed)\n"; exit 1 }
+	}
+} elseif { $su_as != "" } {
+	send "su - $su_as\n"
+	expect {
+		"assword:" {
+			send_user " (su: detected password prompt)\n"
+			send "$su_as_pwd\n"
+			exp_continue
+		}
+		-re "$prompt" { send_user " (su: shell prompt detected)\n" }
+		default { send_user " (su: failed)\n"; exit 1 }
+	}
+} elseif { $newgrp_as != "" } {
+	send "newgrp $newgrp_as\n"
+	expect {
+		"assword:" {
+			send_user " (newgrp: detected password prompt)\n"
+			send "$newgrp_as_pwd\n"
+			exp_continue
+		}
+		-re "$prompt" { send_user " (newgrp: shell prompt detected)\n" }
+		default { send_user " (newgrp: failed)\n"; exit 1 }
+	}
+} else {
+	# Default: legacy su - $USER logic
+	send "su - \$USER\n"
+	sleep .2
+	expect {
+		"assword:" {
+			send_user " (detected password login prompt - possibly token)\n"
+			send "$tokpwd\n"
+			sleep 3
+			expect {
+				" UNIX password:" {
+					send_user " (detected additional password prompt - account password)\n"
+					send "$serverpwd\n"
+					send_user " (continuing expect loop)\n"
+					exp_continue
+				}
+				-nocase "old password:" {
+					send_user " (detected password expired prompt)\n"
+					exit 1
+				}
+				"assword:" {
 					send_user "\nAutomated login failed.\n"
 					exit 1
-					
 				}
-			"ailure" {
+				"ailure" {
 					send_user " Verification failed.\n"
 					exit 1
+				}
+				-re "$prompt" { send_user " (detected shell command prompt -- password seems to be valid)\n" }
 			}
-			-re "$prompt" { send_user " (detected shell command prompt -- password seems to be valid)\n" }
+		}
+		-re "$prompt" {
+			send_user " (detected shell command prompt -- can't verify this way)\n"
+			exit 1
+		}
+		default {
+			send_user " (verification failed) \n"
+			exit 1
 		}
 	}
-	-re "$prompt" { 
-					send_user " (detected shell command prompt -- can't verify this way)\n"
-					exit 1
-	 }
-	 default {
-	 	send_user " (verification failed) \n"
-	 	exit 1
-	 }
 }
 
